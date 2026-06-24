@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECDSA PDF Signer — Tanda Tangan Digital</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:     #0d0f14;
+      --ink-2:   #3a3d4a;
+      --ink-3:   #8891a6;
+      --line:    #e8eaf0;
+      --surface: #f6f7fb;
+      --white:   #ffffff;
+      --blue:    #2a52e8;
+      --blue-lt: #eef1fd;
+      --blue-dk: #1a38c0;
+      --green:   #15a36a;
+      --green-lt:#e8f8f1;
+      --red:     #e03054;
+      --red-lt:  #fde8ec;
+      --amber:   #d97706;
+      --amber-lt:#fef3c7;
+
+      --radius:  10px;
+      --radius-lg: 16px;
+      --shadow:  0 2px 12px rgba(0,0,0,.07);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,.10);
+
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Typography ───────────────────────────────────────── */
+    h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.25; }
+
+    /* ── Layout ───────────────────────────────────────────── */
+    .app-header {
+      background: var(--white);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      background: var(--blue);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-mark svg { width: 18px; height: 18px; color: #fff; }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.03em;
+    }
+
+    .logo-text span {
+      font-weight: 400;
+      color: var(--ink-3);
+      margin-left: 2px;
+      font-size: 13px;
+    }
+
+    .header-badge {
+      margin-left: auto;
+      background: var(--blue-lt);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 40px 28px 80px;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 56px 0 40px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blue);
+      background: var(--blue-lt);
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(26px, 4vw, 38px);
+      font-weight: 800;
+      color: var(--ink);
+      max-width: 640px;
+      margin: 0 auto 14px;
+    }
+
+    .hero p {
+      color: var(--ink-3);
+      font-size: 15px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* ── Tab Nav ──────────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      background: var(--line);
+      padding: 4px;
+      border-radius: var(--radius-lg);
+      margin-bottom: 28px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 9px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-3);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .tab-btn.active {
+      background: var(--white);
+      color: var(--ink);
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    .tab-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    /* ── Cards ────────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--blue);
+      border-radius: 2px;
+    }
+
+    /* ── Form Elements ────────────────────────────────────── */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-2);
+      margin-bottom: 6px;
+      letter-spacing: 0.01em;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--white);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(42,82,232,0.08);
+    }
+
+    input[type="text"]::placeholder { color: var(--ink-3); }
+
+    textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-2);
+      background: var(--surface);
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.15s;
+      min-height: 80px;
+    }
+
+    textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(42,82,232,0.08);
+      background: var(--white);
+    }
+
+    /* ── Drop Zone ────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--line);
+      border-radius: var(--radius-lg);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--surface);
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--blue);
+      background: var(--blue-lt);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--blue-lt);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+
+    .drop-icon svg { width: 22px; height: 22px; color: var(--blue); }
+
+    .drop-zone p {
+      font-size: 13px;
+      color: var(--ink-3);
+      margin-top: 4px;
+    }
+
+    .drop-zone strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink-2);
+    }
+
+    .drop-zone.has-file {
+      border-style: solid;
+      border-color: var(--blue);
+      background: var(--blue-lt);
+    }
+
+    .file-selected {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+    }
+
+    .has-file .file-selected { display: flex; }
+    .has-file .drop-prompt { display: none; }
+
+    /* ── Buttons ──────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.16s ease;
+      letter-spacing: 0.01em;
+    }
+
+    .btn svg { width: 15px; height: 15px; }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--blue-dk); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(42,82,232,.3); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { background: var(--line); color: var(--ink-3); cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--ink-2);
+      border: 1.5px solid var(--line);
+    }
+
+    .btn-outline:hover { border-color: var(--ink-2); background: var(--surface); }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--ink-2);
+    }
+
+    .btn-ghost:hover { background: var(--line); }
+
+    .btn-green {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .btn-green:hover { background: #0f8054; transform: translateY(-1px); }
+
+    .btn-full { width: 100%; }
+
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    /* ── Result Boxes ─────────────────────────────────────── */
+    .result-box {
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 20px;
+      border: 1px solid transparent;
+    }
+
+    .result-box.success {
+      background: var(--green-lt);
+      border-color: #b2e8d2;
+    }
+
+    .result-box.error {
+      background: var(--red-lt);
+      border-color: #f9c0cc;
+    }
+
+    .result-box.info {
+      background: var(--blue-lt);
+      border-color: #c5d0f9;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .result-header svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .success .result-header { color: var(--green); }
+    .error .result-header { color: var(--red); }
+    .info .result-header { color: var(--blue); }
+
+    /* ── Data Grid ────────────────────────────────────────── */
+    .data-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .data-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .data-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding-top: 1px;
+    }
+
+    .data-value {
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--ink-2);
+      word-break: break-all;
+      background: rgba(0,0,0,.035);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .data-value.highlight { color: var(--ink); font-weight: 600; background: rgba(42,82,232,.06); }
+    .data-value.mono-sm { font-size: 10.5px; }
+
+    /* ── Key Display ──────────────────────────────────────── */
+    .key-block {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .key-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--line);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--ink-3);
+    }
+
+    .key-block pre {
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--ink-2);
+      word-break: break-all;
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 80px;
+    }
+
+    /* ── Copy Button ──────────────────────────────────────── */
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--ink-3);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+
+    .copy-btn:hover { background: var(--white); color: var(--ink); }
+    .copy-btn.copied { color: var(--green); }
+    .copy-btn svg { width: 11px; height: 11px; }
+
+    /* ── Divider ──────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--line);
+      margin: 24px 0;
+    }
+
+    /* ── Grid Layout ──────────────────────────────────────── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 720px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .data-row { grid-template-columns: 1fr; }
+      .container { padding: 24px 16px 60px; }
+      .hero { padding: 32px 0 28px; }
+    }
+
+    /* ── Spinner ──────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Tab Panels ───────────────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Step Indicator ───────────────────────────────────── */
+    .steps {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--white);
+    }
+
+    .step {
+      flex: 1;
+      padding: 10px 12px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-3);
+      border-right: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .step:last-child { border-right: none; }
+
+    .step.done {
+      color: var(--green);
+      background: var(--green-lt);
+    }
+
+    .step.active {
+      color: var(--blue);
+      background: var(--blue-lt);
+    }
+
+    .step-num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .step.done .step-num { background: var(--green); color: #fff; }
+    .step.active .step-num { background: var(--blue); color: #fff; }
+
+    /* ── Signature History ────────────────────────────────── */
+    .sig-list { display: grid; gap: 10px; }
+
+    .sig-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--white);
+      transition: border-color 0.15s;
+    }
+
+    .sig-item:hover { border-color: var(--blue); }
+
+    .sig-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--blue-lt);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sig-icon svg { width: 18px; height: 18px; color: var(--blue); }
+
+    .sig-info { flex: 1; min-width: 0; }
+
+    .sig-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sig-meta {
+      font-size: 11px;
+      color: var(--ink-3);
+      margin-top: 2px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .sig-id {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-3);
+    }
+
+    /* ── Empty State ──────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--ink-3);
+    }
+
+    .empty-state svg {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 12px;
+      opacity: 0.4;
+    }
+
+    .empty-state p { font-size: 14px; }
+
+    /* ── Toast ────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--ink);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* ── Algo Info Panel ──────────────────────────────────── */
+    .algo-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .algo-pill {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-2);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .algo-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+
+    /* ── Download btn ─────────────────────────────────────── */
+    .download-box {
+      background: var(--green-lt);
+      border: 1px solid #b2e8d2;
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .download-box p {
+      font-size: 13px;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .download-box small {
+      display: block;
+      font-size: 11px;
+      color: var(--ink-3);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    /* ── Verify status big ────────────────────────────────── */
+    .verify-status {
+      text-align: center;
+      padding: 28px 16px 20px;
+    }
+
+    .status-icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+    }
+
+    .status-icon-wrap.valid { background: var(--green-lt); }
+    .status-icon-wrap.invalid { background: var(--red-lt); }
+    .status-icon-wrap svg { width: 32px; height: 32px; }
+    .status-icon-wrap.valid svg { color: var(--green); }
+    .status-icon-wrap.invalid svg { color: var(--red); }
+
+    .verify-status h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .valid-text h3 { color: var(--green); }
+    .invalid-text h3 { color: var(--red); }
+    .verify-status p { font-size: 13px; color: var(--ink-3); }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="logo-mark">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">ECDSA Signer <span>PDF Digital Signature</span></div>
+    </div>
+    <div class="header-badge">P-256 · SHA-256</div>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      Elliptic Curve Digital Signature Algorithm
+    </div>
+    <h1>Tanda Tangan Digital<br />yang Aman & Terverifikasi</h1>
+    <p>Implementasi ECDSA dengan kurva P-256 dan SHA-256 untuk menandatangani dan memverifikasi dokumen PDF secara kriptografis.</p>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('keygen')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      Key Generation
+    </button>
+    <button class="tab-btn" onclick="switchTab('sign')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Tanda Tangan
+    </button>
+    <button class="tab-btn" onclick="switchTab('verify')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Verifikasi
+    </button>
+    <button class="tab-btn" onclick="switchTab('history')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Riwayat
+    </button>
+  </div>
+
+  <!-- ─── TAB: KEY GENERATION ─────────────────────────────── -->
+  <div class="tab-panel active" id="panel-keygen">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">Generate Key Pair</div>
+
+          <div class="form-group">
+            <label>Nama Pemilik Kunci</label>
+            <input type="text" id="keyOwner" placeholder="Mis: Ahmad Fauzan, PT. Maju Bersama..." />
+          </div>
+
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:600;color:var(--ink-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Parameter Kriptografi</div>
+            <div class="algo-pills">
+              <span class="algo-pill"><span class="dot"></span>Kurva: NIST P-256</span>
+              <span class="algo-pill"><span class="dot"></span>Hash: SHA-256</span>
+              <span class="algo-pill"><span class="dot"></span>Panjang Kunci: 256-bit</span>
+              <span class="algo-pill"><span class="dot"></span>Standar: FIPS 186-4</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="btnGenKey" onclick="generateKeys()">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Generate Key Pair ECDSA
+          </button>
+        </div>
+
+        <!-- Algorithm Info -->
+        <div class="card">
+          <div class="card-title">Tentang ECDSA</div>
+          <div style="font-size:13px;color:var(--ink-2);line-height:1.7;">
+            <p style="margin-bottom:10px;"><strong>Elliptic Curve Digital Signature Algorithm (ECDSA)</strong> adalah algoritma tanda tangan digital berbasis kriptografi kurva eliptik yang menghasilkan pasangan kunci publik-privat.</p>
+            <p style="margin-bottom:10px;">Keamanan ECDSA didasarkan pada <em>Elliptic Curve Discrete Logarithm Problem (ECDLP)</em> yang sangat sulit dipecahkan secara komputasional.</p>
+            <p>Kurva <strong>P-256</strong> (secp256r1) adalah standar NIST yang digunakan secara luas, termasuk dalam TLS/HTTPS, Bitcoin, dan berbagai sistem keamanan modern.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <!-- Key Result -->
+        <div id="keyResult" style="display:none">
+          <div class="card">
+            <div class="card-title">Key Pair Generated</div>
+
+            <div class="result-box success" style="margin-top:0;margin-bottom:16px;">
+              <div class="result-header">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Key pair berhasil dibuat
+              </div>
+              <div class="data-grid">
+                <div class="data-row">
+                  <span class="data-label">Pemilik</span>
+                  <span class="data-value highlight" id="kOwner">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Key ID</span>
+                  <span class="data-value mono-sm" id="kKeyId">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Kurva</span>
+                  <span class="data-value" id="kCurve">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Dibuat</span>
+                  <span class="data-value" id="kCreated">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="key-block">
+              <div class="key-block-header">
+                PRIVATE KEY — RAHASIA
+                <button class="copy-btn" onclick="copyText('kPrivKey', this)">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  Salin
+                </button>
+              </div>
+              <pre id="kPrivKey">—</pre>
+            </div>
+
+            <div class="key-block" style="margin-top:10px;">
+              <div class="key-block-header">
+                PUBLIC KEY
+                <button class="copy-btn" onclick="copyText('kPubKey', this)">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  Salin
+                </button>
+              </div>
+              <pre id="kPubKey">—</pre>
+            </div>
+
+            <div style="margin-top:14px;display:flex;gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="useKeysForSigning()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                Gunakan untuk Tanda Tangan
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Placeholder when no key -->
+        <div id="keyPlaceholder" class="card">
+          <div class="empty-state">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            <p>Key pair akan muncul di sini<br/>setelah di-generate</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: SIGN ──────────────────────────────────────── -->
+  <div class="tab-panel" id="panel-sign">
+    <div class="steps">
+      <div class="step active" id="signStep1">
+        <div class="step-num">1</div>
+        Upload PDF
+      </div>
+      <div class="step" id="signStep2">
+        <div class="step-num">2</div>
+        Input Kunci
+      </div>
+      <div class="step" id="signStep3">
+        <div class="step-num">3</div>
+        Tanda Tangan
+      </div>
+      <div class="step" id="signStep4">
+        <div class="step-num">4</div>
+        Unduh
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">Dokumen PDF</div>
+          <div class="drop-zone" id="signDropZone">
+            <input type="file" accept=".pdf" id="signPdfFile" onchange="handleFileSelect(this, 'signDropZone', 'signFileName')" />
+            <div class="drop-prompt">
+              <div class="drop-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              </div>
+              <strong>Drag & drop PDF di sini</strong>
+              <p>atau klik untuk memilih file</p>
+            </div>
+            <div class="file-selected">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="18" height="18" color="var(--blue)"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span id="signFileName">Tidak ada file</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Informasi Penandatangan</div>
+          <div class="form-group">
+            <label>Nama Penandatangan</label>
+            <input type="text" id="signerName" placeholder="Nama lengkap / jabatan..." />
+          </div>
+          <div class="form-group">
+            <label>Private Key (Hex)</label>
+            <textarea id="signPrivKey" rows="3" placeholder="Tempelkan private key hex di sini..."></textarea>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="btnSign" onclick="signPdf()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          Tanda Tangani Dokumen
+        </button>
+      </div>
+
+      <div>
+        <div id="signResult" style="display:none">
+          <div class="card">
+            <div class="card-title">Hasil Tanda Tangan</div>
+
+            <div class="result-box success" style="margin-top:0;">
+              <div class="result-header">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Dokumen berhasil ditandatangani
+              </div>
+              <div class="data-grid">
+                <div class="data-row">
+                  <span class="data-label">Signature ID</span>
+                  <span class="data-value mono-sm" id="sSigId">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Penandatangan</span>
+                  <span class="data-value highlight" id="sSigner">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Hash Asli</span>
+                  <span class="data-value mono-sm" id="sOrigHash">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Waktu</span>
+                  <span class="data-value" id="sTime">—</span>
+                </div>
+                <div class="data-row">
+                  <span class="data-label">Algoritma</span>
+                  <span class="data-value" id="sAlgo">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="key-block" style="margin-top:14px;">
+              <div class="key-block-header">
+                TANDA TANGAN (DER HEX)
+                <button class="copy-btn" onclick="copyText('sSigDer', this)">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  Salin
+                </button>
+              </div>
+              <pre id="sSigDer">—</pre>
+            </div>
+
+            <div id="signDownloadBox" class="download-box">
+              <div>
+                <p>PDF Telah Ditandatangani</p>
+                <small>Berisi stempel tanda tangan & metadata kriptografi</small>
+              </div>
+              <button class="btn btn-green btn-sm" id="btnDownload" onclick="downloadSignedPdf()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Unduh PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="signPlaceholder" class="card">
+          <div class="empty-state">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            <p>Hasil tanda tangan akan<br/>tampil di sini</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: VERIFY ────────────────────────────────────── -->
+  <div class="tab-panel" id="panel-verify">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">Dokumen & Tanda Tangan</div>
+          <div class="drop-zone" id="verifyDropZone">
+            <input type="file" accept=".pdf" id="verifyPdfFile" onchange="handleFileSelect(this, 'verifyDropZone', 'verifyFileName')" />
+            <div class="drop-prompt">
+              <div class="drop-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              </div>
+              <strong>Upload PDF yang ingin diverifikasi</strong>
+              <p>atau klik untuk memilih file</p>
+            </div>
+            <div class="file-selected">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="18" height="18" color="var(--blue)"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span id="verifyFileName">Tidak ada file</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Data Verifikasi</div>
+
+          <div class="form-group">
+            <label>Signature ID (opsional, jika ada)</label>
+            <input type="text" id="verifySigId" placeholder="UUID dari Signature ID..." />
+          </div>
+
+          <div class="divider"></div>
+
+          <div style="font-size:11px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Atau input manual:</div>
+
+          <div class="form-group">
+            <label>Tanda Tangan (DER Hex)</label>
+            <textarea id="verifySig" rows="3" placeholder="Tempelkan nilai signature DER hex..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Public Key (Hex)</label>
+            <textarea id="verifyPubKey" rows="3" placeholder="Tempelkan public key hex..."></textarea>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="verifyPdf()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Verifikasi Tanda Tangan
+        </button>
+      </div>
+
+      <div>
+        <div id="verifyResult" style="display:none">
+          <div class="card">
+            <div class="card-title">Hasil Verifikasi</div>
+            <div id="verifyStatusArea"></div>
+          </div>
+        </div>
+        <div id="verifyPlaceholder" class="card">
+          <div class="empty-state">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <p>Hasil verifikasi akan<br/>tampil di sini</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: HISTORY ───────────────────────────────────── -->
+  <div class="tab-panel" id="panel-history">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div class="card-title" style="margin-bottom:0;">Riwayat Tanda Tangan</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="historyList">
+        <div class="empty-state">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <p>Belum ada tanda tangan tersimpan</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Toast -->
+<div id="toast">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  <span id="toastMsg">—</span>
+</div>
+
+<script>
+  /* ── Config ────────────────────────────────────────────── */
+  const API = 'http://localhost:3001/api';
+
+  /* ── State ──────────────────────────────────────────────── */
+  let generatedKeys = null;
+  let signedPdfBase64 = null;
+  let signedFileName = 'signed-document.pdf';
+
+  /* ── Tabs ────────────────────────────────────────────────── */
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn')[['keygen','sign','verify','history'].indexOf(tab)].classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+    if (tab === 'history') loadHistory();
+  }
+
+  /* ── File Drop ─────────────────────────────────────────── */
+  function handleFileSelect(input, zoneId, nameId) {
+    const zone = document.getElementById(zoneId);
+    const nameEl = document.getElementById(nameId);
+    if (input.files[0]) {
+      nameEl.textContent = input.files[0].name;
+      zone.classList.add('has-file');
+      updateSignSteps(1);
+    }
+  }
+
+  // Drag & drop
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const input = zone.querySelector('input[type=file]');
+      if (e.dataTransfer.files[0]?.type === 'application/pdf') {
+        const dt = new DataTransfer();
+        dt.items.add(e.dataTransfer.files[0]);
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change'));
+      } else {
+        showToast('Hanya file PDF yang didukung', 'error');
+      }
+    });
+  });
+
+  /* ── Step Indicator ────────────────────────────────────── */
+  function updateSignSteps(active) {
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById('signStep' + i);
+      if (!el) continue;
+      el.className = 'step';
+      if (i < active) el.classList.add('done');
+      else if (i === active) el.classList.add('active');
+    }
+  }
+
+  /* ── Generate Keys ─────────────────────────────────────── */
+  async function generateKeys() {
+    const btn = document.getElementById('btnGenKey');
+    const owner = document.getElementById('keyOwner').value.trim();
+    btn.innerHTML = '<div class="spinner"></div> Generating...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`${API}/generate-keys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      generatedKeys = data;
+      document.getElementById('kOwner').textContent = data.owner;
+      document.getElementById('kKeyId').textContent = data.keyId;
+      document.getElementById('kCurve').textContent = data.curve;
+      document.getElementById('kCreated').textContent = new Date(data.createdAt).toLocaleString('id-ID');
+      document.getElementById('kPrivKey').textContent = data.privateKey;
+      document.getElementById('kPubKey').textContent = data.publicKey;
+
+      document.getElementById('keyResult').style.display = 'block';
+      document.getElementById('keyPlaceholder').style.display = 'none';
+      showToast('Key pair berhasil dibuat!');
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      btn.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate Key Pair ECDSA';
+      btn.disabled = false;
+    }
+  }
+
+  /* ── Use keys for signing ─────────────────────────────── */
+  function useKeysForSigning() {
+    if (!generatedKeys) return;
+    document.getElementById('signPrivKey').value = generatedKeys.privateKey;
+    document.getElementById('signerName').value = generatedKeys.owner;
+    switchTab('sign');
+    updateSignSteps(2);
+    showToast('Kunci telah diisi ke form tanda tangan');
+  }
+
+  /* ── Sign PDF ──────────────────────────────────────────── */
+  async function signPdf() {
+    const fileInput = document.getElementById('signPdfFile');
+    const privKey = document.getElementById('signPrivKey').value.trim();
+    const signerName = document.getElementById('signerName').value.trim();
+
+    if (!fileInput.files[0]) { showToast('Pilih file PDF terlebih dahulu', 'error'); return; }
+    if (!privKey) { showToast('Private key diperlukan', 'error'); return; }
+
+    const btn = document.getElementById('btnSign');
+    btn.innerHTML = '<div class="spinner"></div> Menandatangani...';
+    btn.disabled = true;
+    updateSignSteps(3);
+
+    try {
+      const formData = new FormData();
+      formData.append('pdf', fileInput.files[0]);
+      formData.append('privateKey', privKey);
+      formData.append('signerName', signerName || 'Unknown');
+
+      const res = await fetch(`${API}/sign`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      signedPdfBase64 = data.signedPdf;
+      signedFileName = 'signed-' + fileInput.files[0].name;
+
+      document.getElementById('sSigId').textContent = data.sigId;
+      document.getElementById('sSigner').textContent = data.signerName;
+      document.getElementById('sOrigHash').textContent = data.originalHash;
+      document.getElementById('sTime').textContent = new Date(data.timestamp).toLocaleString('id-ID');
+      document.getElementById('sAlgo').textContent = data.algorithm;
+      document.getElementById('sSigDer').textContent = data.signature;
+
+      document.getElementById('signResult').style.display = 'block';
+      document.getElementById('signPlaceholder').style.display = 'none';
+      updateSignSteps(4);
+      showToast('Dokumen berhasil ditandatangani!');
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+      updateSignSteps(2);
+    } finally {
+      btn.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> Tanda Tangani Dokumen';
+      btn.disabled = false;
+    }
+  }
+
+  /* ── Download Signed PDF ───────────────────────────────── */
+  function downloadSignedPdf() {
+    if (!signedPdfBase64) return;
+    const bytes = atob(signedPdfBase64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = signedFileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('PDF berhasil diunduh');
+  }
+
+  /* ── Verify PDF ────────────────────────────────────────── */
+  async function verifyPdf() {
+    const fileInput = document.getElementById('verifyPdfFile');
+    const sigId = document.getElementById('verifySigId').value.trim();
+    const sig = document.getElementById('verifySig').value.trim();
+    const pubKey = document.getElementById('verifyPubKey').value.trim();
+
+    if (!fileInput.files[0]) { showToast('Pilih file PDF terlebih dahulu', 'error'); return; }
+    if (!sigId && (!sig || !pubKey)) { showToast('Masukkan Signature ID atau tanda tangan + public key', 'error'); return; }
+
+    const btn = document.querySelector('#panel-verify .btn-primary');
+    btn.innerHTML = '<div class="spinner"></div> Memverifikasi...';
+    btn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append('pdf', fileInput.files[0]);
+      if (sigId) formData.append('sigId', sigId);
+      if (sig) formData.append('signature', sig);
+      if (pubKey) formData.append('publicKey', pubKey);
+
+      const res = await fetch(`${API}/verify`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      renderVerifyResult(data);
+      document.getElementById('verifyResult').style.display = 'block';
+      document.getElementById('verifyPlaceholder').style.display = 'none';
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      btn.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Verifikasi Tanda Tangan';
+      btn.disabled = false;
+    }
+  }
+
+  function renderVerifyResult(data) {
+    const area = document.getElementById('verifyStatusArea');
+    const valid = data.isValid;
+    area.innerHTML = `
+      <div class="verify-status ${valid ? 'valid-text' : 'invalid-text'}">
+        <div class="status-icon-wrap ${valid ? 'valid' : 'invalid'}">
+          ${valid
+            ? `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`
+            : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`
+          }
+        </div>
+        <h3>${valid ? 'Tanda Tangan Valid' : 'Tanda Tangan Tidak Valid'}</h3>
+        <p>${valid ? 'Dokumen asli dan tanda tangan terverifikasi secara kriptografis.' : (data.reason || 'Dokumen mungkin telah dimodifikasi.')}</p>
+      </div>
+      <div class="result-box ${valid ? 'success' : 'error'}" style="margin-top:16px;">
+        <div class="data-grid">
+          ${data.signerName ? `<div class="data-row"><span class="data-label">Penandatangan</span><span class="data-value highlight">${data.signerName}</span></div>` : ''}
+          ${data.signedAt ? `<div class="data-row"><span class="data-label">Ditandatangani</span><span class="data-value">${new Date(data.signedAt).toLocaleString('id-ID')}</span></div>` : ''}
+          ${data.fileName ? `<div class="data-row"><span class="data-label">Nama File</span><span class="data-value">${data.fileName}</span></div>` : ''}
+          <div class="data-row"><span class="data-label">Hash Dokumen</span><span class="data-value mono-sm">${data.fileHash}</span></div>
+          <div class="data-row"><span class="data-label">Algoritma</span><span class="data-value">${data.algorithm}</span></div>
+          <div class="data-row"><span class="data-label">Waktu Verifikasi</span><span class="data-value">${new Date(data.timestamp).toLocaleString('id-ID')}</span></div>
+        </div>
+      </div>
+    `;
+  }
+
+  /* ── Load History ──────────────────────────────────────── */
+  async function loadHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--ink-3);font-size:13px;">Memuat...</div>';
+    try {
+      const res = await fetch(`${API}/signatures`);
+      const data = await res.json();
+      if (!data.signatures.length) {
+        list.innerHTML = `<div class="empty-state">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <p>Belum ada tanda tangan tersimpan</p>
+        </div>`;
+        return;
+      }
+      list.innerHTML = '<div class="sig-list">' + data.signatures.map(s => `
+        <div class="sig-item">
+          <div class="sig-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <div class="sig-info">
+            <div class="sig-name">${s.fileName}</div>
+            <div class="sig-meta">
+              <span>${s.signerName}</span>
+              <span>${new Date(s.timestamp).toLocaleDateString('id-ID')}</span>
+            </div>
+            <div class="sig-id">${s.sigId}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="prefillVerify('${s.sigId}')">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Verifikasi
+          </button>
+        </div>
+      `).join('') + '</div>';
+    } catch (e) {
+      list.innerHTML = `<div class="empty-state"><p>Tidak bisa terhubung ke server</p></div>`;
+    }
+  }
+
+  function prefillVerify(sigId) {
+    document.getElementById('verifySigId').value = sigId;
+    switchTab('verify');
+  }
+
+  /* ── Copy Text ─────────────────────────────────────────── */
+  function copyText(elId, btn) {
+    const text = document.getElementById(elId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Tersalin';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Salin';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  /* ── Toast ─────────────────────────────────────────────── */
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    const m = document.getElementById('toastMsg');
+    t.style.background = type === 'error' ? 'var(--red)' : 'var(--ink)';
+    m.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ── Init ──────────────────────────────────────────────── */
+  // Check server on load
+  fetch(`${API}/health`).catch(() => {
+    setTimeout(() => showToast('Server tidak terdeteksi. Pastikan backend berjalan di port 3001.', 'error'), 800);
+  });
+</script>
+</body>
+</html>
